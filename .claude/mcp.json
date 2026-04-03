@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "taskarena": {
+      "command": "uv",
+      "args": ["run", "taskarena", "channel"]
+    }
+  }
+}
