@@ -23,5 +23,5 @@ fi
 # Note: TaskArena loads .env via python-dotenv internally, so tmux env inheritance is not required.
 # We source .env in this script only for any shell-level tooling that may need it.
 tmux new-session -d -s "$SESSION" \
-  "cd $SCRIPT_DIR && claude --dangerously-load-development-channels taskarena"
+  "cd $SCRIPT_DIR && claude --dangerously-load-development-channels server:taskarena"
 exec tmux attach -t "$SESSION"
