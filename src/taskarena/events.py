@@ -29,6 +29,7 @@ class FeishuEventListener:
         self.notifier = notifier
         self._stop_event = asyncio.Event()
         self._last_event_at = time.time()
+        self._health_alerted: bool = False
         self._event_ids: OrderedDict[str, None] = OrderedDict()
         self._thread: threading.Thread | None = None
         self._ws_client: lark.ws.Client | None = None
@@ -69,16 +70,19 @@ class FeishuEventListener:
                 )
                 break
 
-            if time.time() - self._last_event_at > 300:
-                await self.notifier(
-                    build_channel_xml(
-                        "WebSocket has not received events for 5+ minutes.",
-                        source="taskarena",
-                        type="health",
-                        status="degraded",
-                    )
+            await self._check_health()
+
+    async def _check_health(self) -> None:
+        if time.time() - self._last_event_at > 300 and not self._health_alerted:
+            await self.notifier(
+                build_channel_xml(
+                    "WebSocket has not received events for 5+ minutes.",
+                    source="taskarena",
+                    type="health",
+                    status="degraded",
                 )
-                self._last_event_at = time.time()
+            )
+            self._health_alerted = True
 
     async def stop(self) -> None:
         self._stop_event.set()
@@ -93,6 +97,7 @@ class FeishuEventListener:
         while len(self._event_ids) > 1000:
             self._event_ids.popitem(last=False)
         self._last_event_at = time.time()
+        self._health_alerted = False
         return True
 
     async def _handle_im_message(self, event: P2ImMessageReceiveV1) -> None:
