@@ -194,7 +194,7 @@ async def list_tasks(tasklist_id: str, completed: bool = None) -> dict:
     if response.data and response.data.items:
         for item in response.data.items:
             # items are TaskSummary objects directly (no .task wrapper)
-            # completed_at is an int timestamp (0 or None = not completed)
+            # completed_at may be int 0 or string "0" for incomplete; nonzero/non-"0" = completed
             is_completed = bool(item.completed_at and item.completed_at != "0")
             if completed is not None and is_completed != completed:
                 continue

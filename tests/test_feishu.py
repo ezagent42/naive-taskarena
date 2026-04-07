@@ -53,6 +53,56 @@ def test_list_tasks_includes_assignees():
     assert result["tasks"][0]["is_completed"] is False
 
 
+def test_list_tasks_completed_at_string_zero_is_not_completed():
+    """list_tasks treats completed_at string "0" as not completed."""
+    from taskarena import feishu
+    from lark_oapi.api.task.v2.model.task_summary import TaskSummary
+
+    task = TaskSummary()
+    task.guid = "task-002"
+    task.summary = "Incomplete task"
+    task.completed_at = "0"  # String zero from API
+    task.members = []
+
+    mock_response = mock.MagicMock()
+    mock_response.success.return_value = True
+    mock_response.data.items = [task]
+
+    mock_client = mock.MagicMock()
+    mock_client.task.v2.tasklist.atasks = mock.AsyncMock(return_value=mock_response)
+
+    with mock.patch.object(feishu, "get_client", return_value=mock_client):
+        import asyncio
+        result = asyncio.run(feishu.list_tasks("tasklist-001"))
+
+    assert result["tasks"][0]["is_completed"] is False
+
+
+def test_list_tasks_completed_at_nonzero_is_completed():
+    """list_tasks treats completed_at string timestamp as completed."""
+    from taskarena import feishu
+    from lark_oapi.api.task.v2.model.task_summary import TaskSummary
+
+    task = TaskSummary()
+    task.guid = "task-003"
+    task.summary = "Completed task"
+    task.completed_at = "1712345678000"  # String timestamp from API
+    task.members = []
+
+    mock_response = mock.MagicMock()
+    mock_response.success.return_value = True
+    mock_response.data.items = [task]
+
+    mock_client = mock.MagicMock()
+    mock_client.task.v2.tasklist.atasks = mock.AsyncMock(return_value=mock_response)
+
+    with mock.patch.object(feishu, "get_client", return_value=mock_client):
+        import asyncio
+        result = asyncio.run(feishu.list_tasks("tasklist-001"))
+
+    assert result["tasks"][0]["is_completed"] is True
+
+
 def test_send_message_passes_receive_id_type():
     """send_message forwards receive_id_type to the Feishu API."""
     from taskarena import feishu
