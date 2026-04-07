@@ -97,3 +97,116 @@ async def test_scheduler_primes_next_runs():
     now = datetime.now().astimezone()
     assert scheduler._next_run["job1"] > now
     assert scheduler._next_run["job2"] > now
+
+
+from datetime import date
+from zoneinfo import ZoneInfo
+from taskarena.config import ReminderConfig
+
+
+def _make_config_with_reminders(morning_time: str = "09:00", tasklists=None) -> Config:
+    return Config(
+        app_id="test",
+        app_secret="test",
+        tasklists=[{"id": "tl-001", "name": "Main"}],
+        allowed_users=["ou_alice", "ou_bob"],
+        reminders=ReminderConfig(
+            morning_time=morning_time,
+            timezone="UTC",
+            tasklists=tasklists or [],
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_does_not_fire_before_time():
+    dms_sent = []
+
+    async def notifier(content, **_):
+        dms_sent.append(content)
+
+    config = _make_config_with_reminders(morning_time="23:59")
+    scheduler = TaskArenaScheduler(config, notifier)
+
+    await scheduler._check_morning_reminders()
+
+    assert dms_sent == []
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_fires_after_time():
+    dms_sent = []
+
+    async def notifier(content, **_):
+        dms_sent.append(content)
+
+    config = _make_config_with_reminders(morning_time="00:00")
+    scheduler = TaskArenaScheduler(config, notifier)
+
+    mock_tasks = {
+        "tasks": [
+            {"task_id": "t-1", "summary": "Fix bug", "is_completed": False, "assignees": ["ou_alice"]},
+        ],
+        "total": 1,
+    }
+
+    with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
+        mock_feishu.list_tasks = mock.AsyncMock(return_value=mock_tasks)
+        mock_feishu.send_message = mock.AsyncMock(return_value={"message_id": "m1"})
+
+        await scheduler._check_morning_reminders()
+
+        mock_feishu.send_message.assert_called_once()
+        call_kwargs = mock_feishu.send_message.call_args
+        assert call_kwargs.kwargs.get("receive_id_type") == "open_id"
+        assert "Fix bug" in call_kwargs.args[1]
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_fires_only_once_per_day():
+    config = _make_config_with_reminders(morning_time="00:00")
+    scheduler = TaskArenaScheduler(config, None)
+
+    with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
+        mock_feishu.list_tasks = mock.AsyncMock(return_value={"tasks": [], "total": 0})
+        mock_feishu.send_message = mock.AsyncMock(return_value={"message_id": "m1"})
+
+        await scheduler._check_morning_reminders()
+        await scheduler._check_morning_reminders()  # second call — should be skipped
+
+        # list_tasks called once, not twice
+        assert mock_feishu.list_tasks.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_skips_tasks_without_assignees():
+    config = _make_config_with_reminders(morning_time="00:00")
+    scheduler = TaskArenaScheduler(config, None)
+
+    mock_tasks = {
+        "tasks": [
+            {"task_id": "t-1", "summary": "Unassigned task", "is_completed": False, "assignees": []},
+        ],
+        "total": 1,
+    }
+
+    with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
+        mock_feishu.list_tasks = mock.AsyncMock(return_value=mock_tasks)
+        mock_feishu.send_message = mock.AsyncMock()
+
+        await scheduler._check_morning_reminders()
+
+        mock_feishu.send_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_disabled_when_no_reminders_config():
+    config = Config(app_id="test", app_secret="test")
+    scheduler = TaskArenaScheduler(config, None)
+
+    with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
+        mock_feishu.list_tasks = mock.AsyncMock()
+
+        await scheduler._check_morning_reminders()
+
+        mock_feishu.list_tasks.assert_not_called()
