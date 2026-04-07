@@ -7,3 +7,4 @@ __pycache__/
 .traerules
 .DS_Store
 *.pyc
+.worktrees/
