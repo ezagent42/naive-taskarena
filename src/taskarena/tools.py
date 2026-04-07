@@ -30,6 +30,7 @@ TOOLS: list[types.Tool] = [
             "message": {"type": "string"},
             "message_id": {"type": "string"},
             "msg_type": {"type": "string", "default": "text"},
+            "receive_id_type": {"type": "string", "default": "chat_id", "enum": ["chat_id", "open_id", "user_id", "union_id"]},
         },
         ["message"],
     ),
@@ -111,9 +112,15 @@ async def call_tool(name: str, arguments: dict[str, Any] | None) -> dict[str, An
         message = args["message"]
         msg_type = args.get("msg_type", "text")
         message_id = args.get("message_id")
+        receive_id_type = args.get("receive_id_type", "chat_id")
         if message_id:
             return await feishu.send_reply(message_id=message_id, content=message, msg_type=msg_type)
-        return await feishu.send_message(chat_id=args["chat_id"], content=message, msg_type=msg_type)
+        return await feishu.send_message(
+            chat_id=args["chat_id"],
+            content=message,
+            msg_type=msg_type,
+            receive_id_type=receive_id_type,
+        )
 
     if name == "react":
         return await feishu.react_message(message_id=args["message_id"], emoji_type=args["emoji_type"])

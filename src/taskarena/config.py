@@ -2,10 +2,17 @@ import os
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import yaml
 from dotenv import load_dotenv
+
+
+@dataclass
+class ReminderConfig:
+    morning_time: str = "09:00"
+    timezone: str = "Asia/Shanghai"
+    tasklists: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -17,6 +24,7 @@ class Config:
     schedules: List[Dict[str, Any]] = field(default_factory=list)
     users: Dict[str, str] = field(default_factory=dict)
     log_level: str = "INFO"
+    reminders: Optional[ReminderConfig] = None
 
     @classmethod
     def load(cls) -> "Config":
@@ -37,17 +45,27 @@ class Config:
         tasklists = []
         allowed_users = []
         schedules = []
+        reminders = None
 
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
                 tasklists = data.get("tasklists", [])
-                
+
                 access = data.get("access", {})
                 if isinstance(access, dict):
                     allowed_users = access.get("allowed_users", [])
-                
+
                 schedules = data.get("schedules", [])
+
+                reminders_data = data.get("reminders")
+                if reminders_data is not None:
+                    rd = reminders_data if isinstance(reminders_data, dict) else {}
+                    reminders = ReminderConfig(
+                        morning_time=rd.get("morning_time", "09:00"),
+                        timezone=rd.get("timezone", "Asia/Shanghai"),
+                        tasklists=rd.get("tasklists", []),
+                    )
 
         # 3. Load users cache
         users_path = Path(".taskarena/users.json")
@@ -67,4 +85,5 @@ class Config:
             schedules=schedules,
             users=users,
             log_level=log_level,
+            reminders=reminders,
         )
