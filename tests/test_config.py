@@ -37,6 +37,7 @@ def test_config_reminders_defaults(tmp_path, monkeypatch):
     (tmp_path / ".taskarena").mkdir()
     (tmp_path / ".taskarena" / "config.yaml").write_text("reminders: {}\n")
     config = Config.load()
+    assert config.reminders is not None
     assert config.reminders.morning_time == "09:00"
     assert config.reminders.timezone == "Asia/Shanghai"
     assert config.reminders.tasklists == []
