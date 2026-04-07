@@ -80,8 +80,12 @@ class TaskArenaScheduler:
         if self._last_reminder_date == today:
             return
 
-        h, m = cfg.morning_time.split(":")
-        target = now.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+        try:
+            h, m = cfg.morning_time.split(":")
+            target = now.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+        except (ValueError, TypeError):
+            log.error("Invalid morning_time format %r in reminders config — expected HH:MM", cfg.morning_time)
+            return
         if now < target:
             return
 

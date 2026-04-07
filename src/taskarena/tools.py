@@ -30,7 +30,7 @@ TOOLS: list[types.Tool] = [
             "message": {"type": "string"},
             "message_id": {"type": "string"},
             "msg_type": {"type": "string", "default": "text"},
-            "receive_id_type": {"type": "string", "default": "chat_id"},
+            "receive_id_type": {"type": "string", "default": "chat_id", "enum": ["chat_id", "open_id", "user_id", "union_id"]},
         },
         ["message"],
     ),
