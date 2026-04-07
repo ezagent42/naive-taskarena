@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest import mock
 
 import pytest
 
 from taskarena.scheduler import TaskArenaScheduler
-from taskarena.config import Config
+from taskarena.config import Config, ReminderConfig
 
 
 def _make_config(schedules: list) -> Config:
@@ -76,7 +76,6 @@ async def test_scheduler_skips_incomplete_schedule():
         {"name": "bad-job", "cron": "* * * * *"},
     ])
     scheduler = TaskArenaScheduler(config, notifier)
-    from datetime import datetime, timedelta
     scheduler._next_run["bad-job"] = datetime.now().astimezone() - timedelta(minutes=1)
 
     await scheduler._tick()
@@ -97,11 +96,6 @@ async def test_scheduler_primes_next_runs():
     now = datetime.now().astimezone()
     assert scheduler._next_run["job1"] > now
     assert scheduler._next_run["job2"] > now
-
-
-from datetime import date
-from zoneinfo import ZoneInfo
-from taskarena.config import ReminderConfig
 
 
 def _make_config_with_reminders(morning_time: str = "09:00", tasklists=None) -> Config:
@@ -210,3 +204,25 @@ async def test_morning_reminder_disabled_when_no_reminders_config():
         await scheduler._check_morning_reminders()
 
         mock_feishu.list_tasks.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_morning_reminder_skips_users_not_in_allowed_users():
+    config = _make_config_with_reminders(morning_time="00:00")
+    # Only ou_alice and ou_bob are in allowed_users (from _make_config_with_reminders)
+    scheduler = TaskArenaScheduler(config, None)
+
+    mock_tasks = {
+        "tasks": [
+            {"task_id": "t-1", "summary": "Task for charlie", "is_completed": False, "assignees": ["ou_charlie"]},
+        ],
+        "total": 1,
+    }
+
+    with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
+        mock_feishu.list_tasks = mock.AsyncMock(return_value=mock_tasks)
+        mock_feishu.send_message = mock.AsyncMock()
+
+        await scheduler._check_morning_reminders()
+
+        mock_feishu.send_message.assert_not_called()
