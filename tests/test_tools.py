@@ -113,6 +113,10 @@ async def test_reply_tool_defaults_receive_id_type_to_chat_id():
             "chat_id": "chat_abc",
             "message": "hi",
         })
-        _, kwargs = m.call_args
-        assert kwargs.get("receive_id_type", "chat_id") == "chat_id"
+        m.assert_called_once_with(
+            chat_id="chat_abc",
+            content="hi",
+            msg_type="text",
+            receive_id_type="chat_id",
+        )
         assert result["message_id"] == "msg-002"
