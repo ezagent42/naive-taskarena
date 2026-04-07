@@ -37,17 +37,17 @@ def get_client() -> lark.Client:
             .build()
     return _client
 
-async def send_message(chat_id: str, content: str, msg_type: str = "text") -> dict:
+async def send_message(chat_id: str, content: str, msg_type: str = "text", receive_id_type: str = "chat_id") -> dict:
     """Send a message to a chat or user."""
     client = get_client()
-    
+
     if msg_type == "text":
         content_str = json.dumps({"text": content}, ensure_ascii=False)
     else:
         content_str = content  # Assume it's already a valid JSON string for other types
 
     request = CreateMessageRequest.builder() \
-        .receive_id_type("chat_id") \
+        .receive_id_type(receive_id_type) \
         .request_body(CreateMessageRequestBody.builder()
             .receive_id(chat_id)
             .msg_type(msg_type)
@@ -58,7 +58,7 @@ async def send_message(chat_id: str, content: str, msg_type: str = "text") -> di
     response = await client.im.v1.message.acreate(request)
     if not response.success():
         raise Exception(f"Feishu API error (send_message): code {response.code}, msg {response.msg}")
-    
+
     return {"message_id": response.data.message_id}
 
 async def send_reply(message_id: str, content: str, msg_type: str = "text") -> dict:
@@ -195,16 +195,21 @@ async def list_tasks(tasklist_id: str, completed: bool = None) -> dict:
         for item in response.data.items:
             # items are TaskSummary objects directly (no .task wrapper)
             # completed_at is an int timestamp (0 or None = not completed)
-            is_completed = bool(item.completed_at)
+            is_completed = bool(item.completed_at and item.completed_at != "0")
             if completed is not None and is_completed != completed:
                 continue
 
+            assignees = [
+                m.id for m in (item.members or [])
+                if m.role == "assignee" and m.id
+            ]
             tasks.append({
                 "task_id": item.guid,
                 "summary": item.summary,
                 "is_completed": is_completed,
+                "assignees": assignees,
             })
-            
+
     return {"tasks": tasks, "total": len(tasks)}
 
 
