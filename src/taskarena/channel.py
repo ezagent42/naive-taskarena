@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import json
 import signal
+import sys
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any
+from pathlib import Path
+from typing import Any, IO
 
 import anyio
 import mcp.types as types
@@ -23,6 +26,20 @@ from .scheduler import TaskArenaScheduler
 from .tools import call_tool, list_tools
 
 log = get_logger("channel")
+
+LOCK_FILE_PATH = Path.home() / ".taskarena.lock"
+
+
+def acquire_instance_lock(lock_path: Path = LOCK_FILE_PATH) -> IO[str]:
+    """Acquire an exclusive instance lock. Exits with code 1 if already locked."""
+    lock_file = open(lock_path, "w")  # noqa: SIM115
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        print("taskarena channel is already running. Exiting.", file=sys.stderr)
+        sys.exit(1)
+    return lock_file
 
 
 @dataclass
@@ -117,4 +134,5 @@ async def run_channel_server() -> None:
 
 
 def main() -> None:
+    _lock = acquire_instance_lock()  # noqa: F841 — held open to maintain the lock
     asyncio.run(run_channel_server())
