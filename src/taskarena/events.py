@@ -101,18 +101,23 @@ class FeishuEventListener:
         return True
 
     async def _handle_im_message(self, event: P2ImMessageReceiveV1) -> None:
-        if not self._remember_event(getattr(event.header, "event_id", None)):
+        event_id = getattr(event.header, "event_id", None)
+        if not self._remember_event(event_id):
+            log.debug("Duplicate IM event %s, skipping", event_id)
             return
 
         sender = getattr(getattr(event.event, "sender", None), "sender_id", None)
         open_id = getattr(sender, "open_id", None)
+        log.info("IM message received from open_id=%s, event_id=%s", open_id, event_id)
+
         if self.config.allowed_users and open_id not in self.config.allowed_users:
-            log.debug("Dropping message from non-allowlisted user: %s", open_id)
+            log.info("Dropping message from non-allowlisted user: %s", open_id)
             return
 
         message = getattr(event.event, "message", None)
         content = _extract_message_text(getattr(message, "content", None))
         user_name = self.config.users.get(open_id or "", open_id or "unknown")
+        log.info("Forwarding IM from %s: %s", user_name, content[:50])
         xml = build_channel_xml(
             content,
             source="taskarena",

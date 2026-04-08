@@ -81,9 +81,9 @@ class TaskArenaScheduler:
             return
 
         try:
-            h, m = cfg.morning_time.split(":")
+            h, m = str(cfg.morning_time).split(":")
             target = now.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             log.error("Invalid morning_time format %r in reminders config — expected HH:MM", cfg.morning_time)
             return
         if now < target:
@@ -117,6 +117,10 @@ class TaskArenaScheduler:
                         (task["task_id"], task["summary"])
                     )
 
+        if not assignee_tasks:
+            log.info("Morning reminder: no incomplete tasks found for any allowed assignee")
+            return
+
         for open_id, tasks in assignee_tasks.items():
             task_lines = "\n".join(
                 f"{i+1}. {summary} (task_id: {task_id})"
@@ -131,3 +135,14 @@ class TaskArenaScheduler:
                 log.info("Morning reminder sent to %s (%d tasks)", open_id, len(tasks))
             except Exception:
                 log.exception("Failed to send morning reminder to %s", open_id)
+                continue
+
+            user_name = self.config.users.get(open_id, open_id)
+            task_info = ", ".join(f"{s} (task_id: {tid})" for tid, s in tasks)
+            await self.notifier(build_channel_xml(
+                f"已向 {user_name} 发送早晨任务提醒，包含以下任务：{task_info}",
+                source="taskarena",
+                type="morning_reminder_sent",
+                user=user_name,
+                open_id=open_id,
+            ))
