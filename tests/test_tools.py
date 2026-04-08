@@ -142,6 +142,7 @@ async def test_reply_tool_defaults_receive_id_type_to_chat_id():
 
 
 @pytest.mark.asyncio
+@mock.patch.dict(os.environ, {"FEISHU_APP_ID": "test", "FEISHU_APP_SECRET": "test"})
 async def test_assign_task_returns_task_context():
     """assign_task should return summary and due_date from the task."""
     mock_response = {
@@ -159,6 +160,7 @@ async def test_assign_task_returns_task_context():
 
 
 @pytest.mark.asyncio
+@mock.patch.dict(os.environ, {"FEISHU_APP_ID": "test", "FEISHU_APP_SECRET": "test"})
 async def test_assign_task_returns_null_due_date_when_absent():
     """assign_task returns due_date=None when task has no due date."""
     mock_response = {
