@@ -6,12 +6,13 @@ from unittest import mock
 import pytest
 
 from taskarena.tools import list_tools, call_tool
+from taskarena import feishu
 
 
 def test_list_tools_returns_all_eight():
     tools = list_tools()
     names = {t.name for t in tools}
-    assert names == {"reply", "react", "create_task", "update_task", "complete_task", "list_tasks", "search_users", "get_config"}
+    assert names == {"reply", "react", "create_task", "update_task", "complete_task", "list_tasks", "assign_task", "search_users", "get_config"}
 
 
 def test_list_tools_have_input_schemas():
@@ -79,6 +80,24 @@ async def test_call_tool_get_config():
 async def test_call_tool_unknown_raises():
     with pytest.raises(ValueError, match="Unknown tool"):
         await call_tool("nonexistent_tool", {})
+
+
+@pytest.mark.asyncio
+async def test_update_task_with_start_date():
+    mock_response = {"task_id": "task-001", "success": True}
+    with mock.patch.object(feishu, "update_task", new=mock.AsyncMock(return_value=mock_response)) as m:
+        result = await call_tool("update_task", {
+            "task_id": "task-001",
+            "start_date": "2026-04-15",
+        })
+    assert result == mock_response
+    m.assert_called_once_with(
+        task_id="task-001",
+        summary=None,
+        description=None,
+        due_date=None,
+        start_date="2026-04-15",
+    )
 
 
 def test_reply_tool_has_receive_id_type_field():

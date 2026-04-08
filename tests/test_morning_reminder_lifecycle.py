@@ -116,7 +116,7 @@ async def test_lifecycle_scheduler_sends_dm_to_each_assignee():
             timezone="UTC",
         ),
     )
-    scheduler = TaskArenaScheduler(config, None)
+    scheduler = TaskArenaScheduler(config, mock.AsyncMock())
 
     sent_dms: list[tuple[str, str]] = []  # (open_id, message)
 
@@ -149,7 +149,7 @@ async def test_lifecycle_dm_content_lists_all_user_tasks():
         allowed_users=["ou_alice", "ou_bob"],
         reminders=ReminderConfig(morning_time="00:00", timezone="UTC"),
     )
-    scheduler = TaskArenaScheduler(config, None)
+    scheduler = TaskArenaScheduler(config, mock.AsyncMock())
 
     alice_message = None
 
@@ -182,7 +182,7 @@ async def test_lifecycle_dm_uses_open_id_receive_type():
         allowed_users=["ou_alice"],
         reminders=ReminderConfig(morning_time="00:00", timezone="UTC"),
     )
-    scheduler = TaskArenaScheduler(config, None)
+    scheduler = TaskArenaScheduler(config, mock.AsyncMock())
 
     tasks = {"tasks": [{"task_id": "t1", "summary": "Task", "is_completed": False, "assignees": ["ou_alice"]}], "total": 1}
 
@@ -244,6 +244,8 @@ async def test_lifecycle_update_task_appends_completion_doc():
         task_id="task-001",
         summary=None,
         description="原始描述\n完成文档：https://docs.example.com/result",
+        due_date=None,
+        start_date=None,
     )
 
 
@@ -271,7 +273,7 @@ async def test_lifecycle_malformed_morning_time_does_not_crash():
         app_secret="test",
         reminders=ReminderConfig(morning_time="9am", timezone="UTC"),
     )
-    scheduler = TaskArenaScheduler(config, None)
+    scheduler = TaskArenaScheduler(config, mock.AsyncMock())
 
     with mock.patch("taskarena.scheduler.feishu") as mock_feishu:
         mock_feishu.list_tasks = mock.AsyncMock()
@@ -290,7 +292,7 @@ async def test_lifecycle_list_tasks_failure_is_handled():
         allowed_users=["ou_alice"],
         reminders=ReminderConfig(morning_time="00:00", timezone="UTC"),
     )
-    scheduler = TaskArenaScheduler(config, None)
+    scheduler = TaskArenaScheduler(config, mock.AsyncMock())
 
     ok_tasks = {"tasks": [{"task_id": "t1", "summary": "OK task", "is_completed": False, "assignees": ["ou_alice"]}], "total": 1}
 
