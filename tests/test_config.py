@@ -12,7 +12,8 @@ def test_config_load():
 
 
 @mock.patch.dict(os.environ, {"FEISHU_APP_ID": "id", "FEISHU_APP_SECRET": "secret"})
-def test_config_reminders_absent_by_default():
+def test_config_reminders_absent_by_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     config = Config.load()
     assert config.reminders is None
 
