@@ -15,6 +15,7 @@ from lark_oapi.api.task.v2 import (
     AddTasklistTaskRequest,
     ListTasklistRequest,
     AddMembersTaskRequest,
+    GetTaskRequest,
 )
 from lark_oapi.api.task.v2.model import Due, Member, Start
 from lark_oapi.api.task.v2.model.add_tasklist_task_request_body import AddTasklistTaskRequestBody
@@ -189,7 +190,7 @@ async def update_task(task_id: str, summary: str = None, description: str = None
 
 
 async def add_task_members(task_id: str, assignee_ids: list) -> dict:
-    """Add assignees to a task using the dedicated members API."""
+    """Add assignees to a task and return task context (summary, due_date)."""
     client = get_client()
     members = [
         Member.builder().id(uid).type("user").role("assignee").build()
@@ -204,7 +205,26 @@ async def add_task_members(task_id: str, assignee_ids: list) -> dict:
     response = await client.task.v2.task.aadd_members(request)
     if not response.success():
         raise Exception(f"Feishu API error (add_task_members): code {response.code}, msg {response.msg}")
-    return {"task_id": task_id, "success": True}
+
+    # Fetch task context so Claude can decide whether to ask about start date
+    due_date = None
+    summary = None
+    try:
+        get_req = GetTaskRequest.builder() \
+            .task_guid(task_id) \
+            .user_id_type("open_id") \
+            .build()
+        get_resp = await client.task.v2.task.aget(get_req)
+        if get_resp.success() and get_resp.data and get_resp.data.task:
+            task = get_resp.data.task
+            summary = task.summary
+            if task.due and task.due.timestamp:
+                ts_ms = int(task.due.timestamp)
+                due_date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+    except Exception:
+        log.warning("Failed to fetch task context after assign (task_id=%s)", task_id)
+
+    return {"task_id": task_id, "summary": summary, "due_date": due_date}
 
 
 async def complete_task(task_id: str) -> dict:

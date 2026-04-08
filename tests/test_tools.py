@@ -139,3 +139,36 @@ async def test_reply_tool_defaults_receive_id_type_to_chat_id():
             receive_id_type="chat_id",
         )
         assert result["message_id"] == "msg-002"
+
+
+@pytest.mark.asyncio
+async def test_assign_task_returns_task_context():
+    """assign_task should return summary and due_date from the task."""
+    mock_response = {
+        "task_id": "task-001",
+        "summary": "Fix login bug",
+        "due_date": "2026-04-20",
+    }
+    with mock.patch.object(feishu, "add_task_members", new=mock.AsyncMock(return_value=mock_response)) as m:
+        result = await call_tool("assign_task", {
+            "task_id": "task-001",
+            "assignee_ids": ["ou_abc123"],
+        })
+    assert result["summary"] == "Fix login bug"
+    assert result["due_date"] == "2026-04-20"
+
+
+@pytest.mark.asyncio
+async def test_assign_task_returns_null_due_date_when_absent():
+    """assign_task returns due_date=None when task has no due date."""
+    mock_response = {
+        "task_id": "task-001",
+        "summary": "Fix login bug",
+        "due_date": None,
+    }
+    with mock.patch.object(feishu, "add_task_members", new=mock.AsyncMock(return_value=mock_response)) as m:
+        result = await call_tool("assign_task", {
+            "task_id": "task-001",
+            "assignee_ids": ["ou_abc123"],
+        })
+    assert result["due_date"] is None
